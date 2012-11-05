@@ -4,7 +4,8 @@ from distutils.core import setup
 
 setup(name             = 'doublex',
       version          = '1.5.1',
-      description      = 'Test doubles framework for Python',
+      description      = 'Test doubles for Python',
+      keywords         = ['unit test', 'double', 'stub', 'spy', 'mock'],
       author           = 'David Villa Alises',
       author_email     = 'David.Villa@gmail.com',
       url              = 'https://bitbucket.org/DavidVilla/python-doublex',
