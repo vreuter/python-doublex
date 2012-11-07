@@ -243,6 +243,11 @@ class VerifiedSpyTests(TestCase):
     def test_create_from_newstyle_class(self):
         self.spy = Spy(ObjCollaborator)
 
+    def test_spy_for_builtin_list(self):
+        spy = Spy(list)
+        spy.append(10)
+        assert_that(spy.append, called().with_args(10))
+
 
 class ProxySpyTest(TestCase):
     def test_must_give_argument(self):

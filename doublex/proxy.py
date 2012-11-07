@@ -61,16 +61,10 @@ class Proxy(object):
     '''Represent the collaborator object'''
     def __init__(self, collaborator):
         self.collaborator = collaborator
-        self.collaborator_class = self.get_class()
+        self.collaborator_class = get_class(collaborator)
 
     def isclass(self):
         return inspect.isclass(self.collaborator)
-
-    def get_class(self):
-        if self.isclass():
-            return self.collaborator
-        else:
-            return self.collaborator.__class__
 
     def get_class_attr(self, key):
         return getattr(self.collaborator_class, key)
@@ -91,12 +85,13 @@ class Proxy(object):
 
     def assure_signature_matches(self, invocation):
         assert self.get_attr_typeid(invocation.name) == 'instancemethod'
+
         signature = Signature(self, invocation.name)
         try:
             signature.assure_match(invocation.context.args,
                                    invocation.context.kargs)
         except TypeError, e:
-            raise TypeError("%s.%s" % (self.get_class(), e))
+            raise TypeError("%s.%s" % (self.collaborator_class, e))
 
     def same_method(self, name1, name2):
         return getattr(self.collaborator, name1) == \
@@ -106,6 +101,14 @@ class Proxy(object):
         method = getattr(self.collaborator, invocation.name)
         return method(*invocation.context.args,
                        **invocation.context.kargs)
+
+
+def create_signature(proxy, method_name):
+    method = getattr(proxy.collaborator, method_name)
+    if not inspect.isfunction(method):
+        return DummySignature(method)
+
+    return Signature(method)
 
 
 class Signature(object):
