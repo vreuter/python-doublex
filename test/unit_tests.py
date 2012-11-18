@@ -139,6 +139,32 @@ class StubReturnValueTests(TestCase):
 
         assert_that(self.spy.hello(), (3, 4))
 
+class AdhocAttributesTests(TestCase):
+    "all doubles accepts ad-hoc attributes"
+
+    def test_add_attribute_for_free_stub(self):
+        stub = Stub()
+        stub.foo = 1
+
+    def test_add_attribute_for_verified_stub(self):
+        stub = Stub(Collaborator)
+        stub.foo = 1
+
+    def test_add_attribute_for_free_spy(self):
+        stub = Spy()
+        stub.foo = 1
+
+    def test_add_attribute_for_verified_spy(self):
+        stub = Spy(Collaborator)
+        stub.foo = 1
+
+    def test_add_attribute_for_free_mock(self):
+        stub = Mock()
+        stub.foo = 1
+
+    def test_add_attribute_for_verified_mock(self):
+        stub = Mock(Collaborator)
+        stub.foo = 1
 
 class SpyTests(TestCase):
     def setUp(self):
@@ -221,6 +247,21 @@ class SpyTests(TestCase):
         assert_that(self.spy.foo, called().with_args(2))
         assert_that(self.spy.foo, called().times(3))
 
+#    def test_called_anything_and_value(self):
+#        spy = Spy(Collaborator)
+#        spy.two_args_method(10, 20)
+#        assert_that(spy.two_args_method, called().with_args(anything(), 20))
+#
+#    def test_called_name_arg_value(self):
+#        spy = Spy(Collaborator)
+#        spy.two_args_method(10, 20)
+#        assert_that(spy.two_args_method, called().with_args(arg2=20))
+#
+#    def test_called_karg(self):
+#        spy = Spy(Collaborator)
+#        spy.mixed_method(2, True)
+#        assert_that(spy.mixed_method, called().with_args(key_param=True))
+
 
 class VerifiedSpyTests(TestCase):
     def setUp(self):
@@ -249,13 +290,38 @@ class VerifiedSpyTests(TestCase):
             assert_that(str(e), contains_string(expected))
 
     def test_create_from_oldstyle_class(self):
-        self.spy = Spy(Collaborator)
+        Spy(Collaborator)
 
     def test_create_from_newstyle_class(self):
-        self.spy = Spy(ObjCollaborator)
+        Spy(ObjCollaborator)
 
 
-class ProxySpyTests(TestCase):
+class BuiltinSpyTests(TestCase):
+    def test_builtin_method(self):
+        spy = Spy(list)
+        spy.append(10)
+        assert_that(spy.append, called().with_args(10))
+
+    def test_builtin_method_wrong_num_args(self):
+        spy = Spy(list)
+        try:
+            spy.append(10, 20)
+            self.fail('AttributeError should be raised')
+        except TypeError as e:
+            expected = "list.append() takes exactly 1 argument (2 given)"
+            assert_that(str(e), contains_string(expected))
+
+    def test_wrong_builtin_method(self):
+        spy = Spy(list)
+        try:
+            spy.wrong(10)
+            self.fail('AttributeError should be raised')
+        except AttributeError as e:
+            expected = "'list' object has no attribute 'wrong'"
+            assert_that(str(e), contains_string(expected))
+
+
+class ProxySpyTest(TestCase):
     def test_must_give_argument(self):
         self.failUnlessRaises(TypeError, ProxySpy)
 
@@ -286,7 +352,7 @@ class ProxySpyTests(TestCase):
         assert_that(foo.value, is_(3))
 
 
-class MockTests(TestCase):
+class MockOrderTests(TestCase):
     def setUp(self):
         self.mock = Mock()
 
@@ -343,7 +409,7 @@ class MockTests(TestCase):
         assert_that(self.mock, any_order_verify())
 
 
-class VerifiesMockTests(TestCase):
+class VerifiedMockTests(TestCase):
     def test_from_instance(self):
         mock = Mock(Collaborator())
         with mock:
@@ -501,7 +567,7 @@ class ANY_ARG_SpyTests(TestCase):
         assert_that(self.spy.foo, called().with_args(1, ANY_ARG))
         assert_that(self.spy.foo, never(called().with_args(2, ANY_ARG)))
 
-    def test__called__and__called_with_args__any_args_is_the_same(self):
+    def test__called__and__called_with_args__ANY_ARGS_is_the_same(self):
         self.spy.foo()
         self.spy.foo(3)
         self.spy.foo('hi')
@@ -669,6 +735,22 @@ class StubDelegateTests(TestCase):
             assert_that(str(e), contains_string(expected))
 
 
+class MockDelegateTest(TestCase):
+    def setUp(self):
+        self.mock = Mock()
+
+    def assert_012(self, method):
+        for x in range(3):
+            assert_that(method(), is_(x))
+
+    def test_delegate_to_list_is_only_an_expectation(self):
+        with self.mock:
+            self.mock.foo().delegates(range(3))
+
+        self.mock.foo()
+        assert_that(self.mock, verify())
+
+
 class MimicTests(TestCase):
     class A(object):
         def method_a(self, n):
@@ -728,7 +810,7 @@ class MimicTests(TestCase):
         assert_that(mock, verify())
 
 
-class PropertiesTests(TestCase):
+class PropertyTests(TestCase):
     def test_stub_notset_property_is_None(self):
         stub = Stub(ObjCollaborator)
         assert_that(stub.prop, is_(None))
@@ -740,18 +822,9 @@ class PropertiesTests(TestCase):
 
         assert_that(stub.prop, is_(2))
 
-    def test_stub_missing_property(self):
-        stub = Stub(ObjCollaborator)
-        with stub:
-            try:
-                stub.missing = 2
-                self.fail('should raise exception')
-            except AttributeError:
-                pass
-
     def test_spy_get_property(self):
         spy = Spy(ObjCollaborator)
-        discard = spy.prop
+        skip = spy.prop
         assert_that(spy, property_got('prop'))
 
     def test_spy_not_get_property(self):
@@ -809,7 +882,7 @@ class PropertiesTests(TestCase):
 
     def test_spy_get_readonly_property_with_deco(self):
         spy = Spy(ObjCollaborator)
-        discard = spy.prop_deco_readonly
+        skip = spy.prop_deco_readonly
         assert_that(spy, property_got('prop_deco_readonly'))
 
     def test_spy_SET_readonly_property_with_deco(self):

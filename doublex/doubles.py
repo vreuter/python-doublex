@@ -20,6 +20,8 @@
 
 
 import inspect
+import copy
+
 import hamcrest
 
 from .internal import ANY_ARG, OperationList, Method, MockBase, SpyBase, AttributeFactory
@@ -86,14 +88,17 @@ class Stub(object):
         return object.__getattribute__(self, key)
 
     def _add_attr(self, key):
-        attr = AttributeFactory.create(self, key)
-        setattr(self.__class__, key, attr)
+        setattr(self.__class__, key, AttributeFactory.create(self, key))
 
     def __setattr__hook(self, key, value):
         if key in self.__dict__:
             return object.__setattr__(self, key, value)
 
-        self._add_attr(key)
+        try:
+            self._add_attr(key)
+        except AttributeError:
+            pass
+
         object.__setattr__(self, key, value)
 
     def _classname(self):
@@ -148,7 +153,7 @@ def Mimic(double, collab):
 
     def _get_method(self, key):
         if key not in self._methods.keys():
-            assert self._proxy.get_attr_typeid(key) == 'instancemethod'
+            assert self._proxy.get_attr_typename(key) == 'instancemethod'
             method = Method(self, key)
             self._methods[key] = method
 
