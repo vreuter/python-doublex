@@ -21,6 +21,7 @@
 
 import itertools
 import threading
+import collections
 
 import hamcrest
 from hamcrest.core.base_matcher import BaseMatcher
@@ -28,10 +29,10 @@ from hamcrest.core.base_matcher import BaseMatcher
 try:
     from functools import total_ordering
 except ImportError:
-    from py27_backports import total_ordering
+    from .py27_backports import total_ordering
 
 
-import safeunicode
+from .safeunicode import get_string
 
 
 class WrongApiUsage(Exception):
@@ -164,7 +165,7 @@ class Invocation(object):
         return Invocation(double, name, InvocationContext(*args, **kargs))
 
     def delegates(self, delegate):
-        if callable(delegate):
+        if isinstance(delegate, collections.Callable):
             self.context.delegate = delegate
             return
 
@@ -298,7 +299,7 @@ class InvocationFormatter(object):
         items = []
         for arg in args:
             if isinstance(arg, unicode):
-                arg = safeunicode.get_string(arg)
+                arg = get_string(arg)
 
             if isinstance(arg, (int, str, dict)):
                 items.append(repr(arg))

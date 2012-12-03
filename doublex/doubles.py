@@ -152,7 +152,7 @@ def Mimic(double, collab):
         return self._get_method(key)
 
     def _get_method(self, key):
-        if key not in self._methods.keys():
+        if key not in list(self._methods.keys()):
             assert self._proxy.get_attr_typename(key) == 'instancemethod'
             method = Method(self, key)
             self._methods[key] = method

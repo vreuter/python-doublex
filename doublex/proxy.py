@@ -24,7 +24,7 @@ import inspect
 try:
     from inspect import getcallargs
 except ImportError:
-    from py27_backports import getcallargs
+    from .py27_backports import getcallargs
 
 from .internal import ANY_ARG
 
@@ -175,7 +175,7 @@ class Signature(object):
 
         try:
             getcallargs(self.method, *args, **kargs)
-        except TypeError, e:
+        except TypeError as e:
             raise TypeError("%s.%s" % (self.proxy.collaborator_classname(), e))
 
     def __repr__(self):
