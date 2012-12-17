@@ -21,6 +21,7 @@
 
 import itertools
 import threading
+import collections
 
 import hamcrest
 from hamcrest.core.base_matcher import BaseMatcher
@@ -28,10 +29,10 @@ from hamcrest.core.base_matcher import BaseMatcher
 try:
     from functools import total_ordering
 except ImportError:
-    from py27_backports import total_ordering
+    from .py27_backports import total_ordering
 
 
-import safeunicode
+from .safeunicode import get_string
 
 
 class WrongApiUsage(Exception):
@@ -164,7 +165,7 @@ class Invocation(object):
         return Invocation(double, name, InvocationContext(*args, **kargs))
 
     def delegates(self, delegate):
-        if callable(delegate):
+        if isinstance(delegate, collections.Callable):
             self.context.delegate = delegate
             return
 
@@ -272,7 +273,8 @@ class InvocationContext(object):
         return self.matches(other)
 
     def __lt__(self, other):
-        return (self.args, self.kargs) < (other.args, other.kargs)
+        return (self.args, sorted(self.kargs.items())) < \
+            (other.args, sorted(other.kargs.items()))
 
     def __str__(self):
         return str(InvocationFormatter(self))
@@ -293,24 +295,28 @@ class InvocationFormatter(object):
             retval += "-> %s" % repr(self.output)
         return retval
 
-    @staticmethod
-    def _format_args(args):
+    @classmethod
+    def _format_args(cls, args):
         items = []
         for arg in args:
-            if isinstance(arg, unicode):
-                arg = safeunicode.get_string(arg)
-
-            if isinstance(arg, (int, str, dict)):
-                items.append(repr(arg))
-            else:
-                items.append(str(arg))
+            items.append(cls._format_value(arg))
 
         return items
 
-    @staticmethod
-    def _format_kargs(kargs):
-        return ['%s=%s' % (key, repr(val))
+    @classmethod
+    def _format_kargs(cls, kargs):
+        return ['%s=%s' % (key, cls._format_value(val))
                 for key, val in sorted(kargs.items())]
+
+    @classmethod
+    def _format_value(cls, arg):
+        if isinstance(arg, unicode):
+            arg = get_string(arg)
+
+        if isinstance(arg, (int, str, dict)):
+            return repr(arg)
+        else:
+            return str(arg)
 
 
 class PropertyGet(Invocation):
@@ -359,6 +365,9 @@ class AttributeFactory(object):
         'instancemethod':    Method,
         'method_descriptor': Method,
         'property':          Property,
+        # -- python3 --
+        'method':            Method,
+        'function':          Method,
         }
 
     @classmethod
