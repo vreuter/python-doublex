@@ -20,7 +20,6 @@
 
 
 import inspect
-import copy
 
 import hamcrest
 

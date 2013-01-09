@@ -53,7 +53,8 @@ class MethodCalled(OperationMatcher):
         self._assure_is_spied_method(method)
         self.method = method
         if self._async_timeout:
-            method.event.wait(self._async_timeout)
+            with method.condition:
+                method.condition.wait(self._async_timeout)
 
         return method._was_called(self.context, self._times)
 

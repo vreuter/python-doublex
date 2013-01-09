@@ -94,13 +94,15 @@ class Method(Observable):
         super(Method, self).__init__()
         self.double = double
         self.name = name
-        self.event = threading.Event()
+        self.condition = threading.Condition()
 
     def __call__(self, *args, **kargs):
         if not self.double._setting_up:
             self.notify(*args, **kargs)
 
-        self.event.set()
+        with self.condition:
+            self.condition.notify()
+
         invocation = self.create_invocation(args, kargs)
         return self.double._manage_invocation(invocation)
 
