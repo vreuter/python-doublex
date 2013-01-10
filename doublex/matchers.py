@@ -23,8 +23,8 @@ import hamcrest
 from hamcrest.core.base_matcher import BaseMatcher
 from hamcrest import assert_that, is_
 
-from internal import Method, InvocationContext, ANY_ARG, MockBase, SpyBase, PropertyGet, PropertySet
-from internal import WrongApiUsage
+from .internal import (Method, InvocationContext, ANY_ARG, MockBase, SpyBase,
+                       PropertyGet, PropertySet, WrongApiUsage)
 
 __all__ = ['called',
            'never',
@@ -53,7 +53,8 @@ class MethodCalled(OperationMatcher):
         self._assure_is_spied_method(method)
         self.method = method
         if self._async_timeout:
-            method.event.wait(self._async_timeout)
+            with method.condition:
+                method.condition.wait(self._async_timeout)
 
         return method._was_called(self.context, self._times)
 

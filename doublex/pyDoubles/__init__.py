@@ -150,7 +150,7 @@ def obj_with_fields(fields):
         raise doublex.WrongApiUsage
 
     matchers = []
-    for key, value in fields.items():
+    for key, value in list(fields.items()):
         matchers.append(has_property(key, value))
 
     return hamcrest.all_of(*matchers)

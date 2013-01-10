@@ -24,7 +24,7 @@ import inspect
 try:
     from inspect import getcallargs
 except ImportError:
-    from py27_backports import getcallargs
+    from .py27_backports import getcallargs
 
 from .internal import ANY_ARG
 
@@ -145,27 +145,6 @@ class Signature(object):
         self.method = getattr(proxy.collaborator, name)
         self.argspec = inspect.getargspec(self.method)
 
-#        print "signature:", self.method
-#        print "class:    ", self.method.__class__
-#        print "args(%s):   %s" % (len(self.argspec.args), self.argspec.args)
-#        print "varargs:  ", self.argspec.varargs
-#        print "keywords: ", self.argspec.keywords
-#        print "defaults: ", self.argspec.defaults
-
-#    def count_positionals(self):
-#        if self.argspec.defaults is None:
-#            ndefaults = 0
-#        else:
-#            ndefaults = len(self.argspec.defaults)
-#
-#        return len(self.argspec.args) - ndefaults - 1
-#
-#    def get_keywords(self):
-#        if self.argspec.defaults is None:
-#            return []
-#
-#        return self.argspec.args[-len(self.argspec.defaults):]
-
     def assure_match(self, args, kargs):
         if ANY_ARG in args:
             return
@@ -175,7 +154,7 @@ class Signature(object):
 
         try:
             getcallargs(self.method, *args, **kargs)
-        except TypeError, e:
+        except TypeError as e:
             raise TypeError("%s.%s" % (self.proxy.collaborator_classname(), e))
 
     def __repr__(self):
