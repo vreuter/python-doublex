@@ -179,31 +179,31 @@ class AdhocAttributesTests(TestCase):
 
     def test_add_attribute_for_free_stub(self):
         sut = Stub()
-        sut.foo = 1
+        sut.adhoc = 1
 
     def test_add_attribute_for_verified_stub(self):
         sut = Stub(Collaborator)
-        sut.foo = 1
+        sut.adhoc = 1
 
     def test_add_attribute_for_free_spy(self):
         sut = Spy()
-        sut.foo = 1
+        sut.adhoc = 1
 
     def test_add_attribute_for_verified_spy(self):
         sut = Spy(Collaborator)
-        sut.foo = 1
+        sut.adhoc = 1
 
     def test_add_attribute_for_proxyspy(self):
-        sut = Spy(Collaborator())
-        sut.class_attr = 'other'
+        sut = ProxySpy(Collaborator())
+        sut.adhoc = 1
 
     def test_add_attribute_for_free_mock(self):
         sut = Mock()
-        sut.foo = 1
+        sut.adhoc = 1
 
     def test_add_attribute_for_verified_mock(self):
         sut = Mock(Collaborator)
-        sut.foo = 1
+        sut.adhoc = 1
 
 
 class FreeSpyTests(TestCase):
@@ -419,13 +419,13 @@ class ProxySpyTests(TestCase):
 
             def store_add(self, value):
                 self.value = value
-                return value + 1
+                return -value
 
         foo = Foo()
         with ProxySpy(foo) as spy:
             spy.store_add(3).returns(1000)
 
-        assert_that(spy.store_add(2), is_(3))
+        assert_that(spy.store_add(2), is_(-2))
         assert_that(foo.value, is_(2))
         assert_that(spy.store_add(3), is_(1000))
         assert_that(foo.value, is_(3))
@@ -994,7 +994,6 @@ class PropertyTests(TestCase):
 
     def test_proxy_spy_get_actual_property(self):
         collaborator = ObjCollaborator()
-        print collaborator.prop
         sut = ProxySpy(collaborator)
         assert_that(sut.prop, is_(1))
 
