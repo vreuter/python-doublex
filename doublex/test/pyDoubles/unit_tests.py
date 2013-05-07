@@ -133,7 +133,7 @@ class ProxySpyTests(unittest.TestCase):
         self.spy.hello()
         args_checker = assert_that_was_called(self.spy.hello)
 
-        self.failUnlessRaises(ArgsDontMatch,
+        self.failUnlessRaises(TypeError,
             args_checker.with_args, "something")
 
     def test_was_called_with_several_parameters(self):

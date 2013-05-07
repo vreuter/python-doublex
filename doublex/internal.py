@@ -48,7 +48,7 @@ class Constant(str):
 
 
 ANY_ARG = Constant('ANY_ARG')
-IMPOSSIBLE = Constant('IMPOSSIBLE')
+UNSPECIFIED = Constant('UNSPECIFIED')
 
 
 def add_indent(text, indent=0):
@@ -107,13 +107,13 @@ class Method(Observable):
         return retval
 
     def _create_invocation(self, args, kargs):
-        return Invocation.from_args(self.double, self.name, args, kargs)
+        return Invocation._from_args(self.double, self.name, args, kargs)
 
     @property
     def calls(self):
         if not isinstance(self.double, SpyBase):
             raise WrongApiUsage("Only Spy derivates store invocations")
-        return [x.context for x in self.double._get_invocations_to(self.name)]
+        return [x._context for x in self.double._get_invocations_to(self.name)]
 
     def _was_called(self, context, times):
         invocation = Invocation(self.double, self.name, context)
@@ -164,33 +164,34 @@ def func_raising(e):
 @total_ordering
 class Invocation(object):
     def __init__(self, double, name, context=None):
-        self.double = double
-        self.name = name
-        self.context = context or InvocationContext()
-        self.delegate = func_returning(None)
+        self._double = double
+        self._name = name
+        self._context = context or InvocationContext()
+        self._context.signature = double._proxy.get_signature(name)
+        self.__delegate = func_returning(None)
 
     @classmethod
-    def from_args(cls, double, name, args=(), kargs={}):
+    def _from_args(cls, double, name, args=(), kargs={}):
         return Invocation(double, name, InvocationContext(*args, **kargs))
 
     def delegates(self, delegate):
         if isinstance(delegate, collections.Callable):
-            self.delegate = delegate
+            self.__delegate = delegate
             return
 
         try:
-            self.delegate = iter(delegate).next
+            self.__delegate = iter(delegate).next
         except TypeError:
             reason = "delegates() must be called with callable or iterable instance (got '%s' instead)" % delegate
             raise WrongApiUsage(reason)
 
     def returns(self, value):
-        self.context.retval = value
+        self._context.retval = value
         self.delegates(func_returning(value))
         return self
 
     def returns_input(self):
-        if not self.context.args:
+        if not self._context.args:
             raise TypeError("%s has no input args" % self)
 
         self.delegates(func_returning_input(self))
@@ -204,25 +205,24 @@ class Invocation(object):
             raise WrongApiUsage("times must be >= 1. Use is_not(called()) for 0 times")
 
         for i in range(1, n):
-            self.double._manage_invocation(self)
+            self._double._manage_invocation(self)
 
     def _apply_stub(self, actual_invocation):
-        context = actual_invocation.context
-        return self.delegate(*context.args, **context.kargs)
+        return actual_invocation._context.apply_on(self.__delegate)
 
     def _apply_on_collaborator(self):
-        return self.double._proxy.perform_invocation(self)
+        return self._double._proxy.perform_invocation(self)
 
     def __eq__(self, other):
-        return self.double._proxy.same_method(self.name, other.name) and \
-            self.context.matches(other.context)
+        return self._double._proxy.same_method(self._name, other._name) and \
+            self._context.matches(other._context)
 
     def __lt__(self, other):
-        return any([self.name < other.name,
-                    self.context < other.context])
+        return any([self._name < other._name,
+                    self._context < other._context])
 
     def __repr__(self):
-        return "%s.%s%s" % (self.double._classname(), self.name, self.context)
+        return "%s.%s%s" % (self._double._classname(), self._name, self._context)
 
     def _show(self, indent=0):
         return add_indent(self, indent)
@@ -233,28 +233,15 @@ class InvocationContext(object):
     def __init__(self, *args, **kargs):
         self.update_args(args, kargs)
         self.retval = None
+        self.signature = None
+        self.check_some_args = False
 
     def update_args(self, args, kargs):
         self.args = args
         self.kargs = kargs
 
-    def matches(self, other):
-        try:
-            if self._assert_args_match(self.args, other.args) is ANY_ARG:
-                return True
-
-            self._assert_kargs_match(self.kargs, other.kargs)
-            return True
-        except AssertionError:
-            return False
-
-    @classmethod
-    def _assert_args_match(cls, args1, args2):
-        for a, b in itertools.izip_longest(args1, args2, fillvalue=IMPOSSIBLE):
-            if ANY_ARG in [a, b]:
-                return ANY_ARG
-
-            cls._assert_values_match(a, b)
+    def apply_on(self, method):
+        return method(*self.args, **self.kargs)
 
     @classmethod
     def _assert_kargs_match(cls, kargs1, kargs2):
@@ -269,8 +256,54 @@ class InvocationContext(object):
 
         hamcrest.assert_that(a, hamcrest.is_(b))
 
-    def __eq__(self, other):
-        return self.matches(other)
+    def copy(self):
+        retval = InvocationContext(*self.args, **self.kargs)
+        retval.signature = self.signature
+        return retval
+
+    def replace_ANY_ARG(self, actual):
+        try:
+            first = self.args.index(ANY_ARG)
+        except ValueError:
+            return self
+
+        retval = self.copy()
+        args = list(self.args[0:first])
+        args.extend([hamcrest.anything()] * (len(actual.args) - first))
+        retval.args = tuple(args)
+        retval.kargs = actual.kargs.copy()
+        return retval
+
+    def add_unspecifed_args(self, context):
+        arg_spec = context.signature.get_arg_spec()
+        if arg_spec is None:
+            raise WrongApiUsage(
+                'free spies does not support the with_some_args() matcher')
+
+        keys = arg_spec.args
+        retval = dict((k,hamcrest.anything()) for k in keys)
+        retval.update(context.kargs)
+        return retval
+
+    def matches(self, other):
+        if ANY_ARG in self.args:
+            matcher, actual = self, other
+        else:
+            matcher, actual = other, self
+
+        matcher = matcher.replace_ANY_ARG(actual)
+
+        if matcher.check_some_args:
+            matcher.kargs = self.add_unspecifed_args(matcher)
+
+        matcher_call_args = matcher.signature.get_call_args(matcher)
+        actual_call_args = actual.signature.get_call_args(actual)
+
+        try:
+            self._assert_kargs_match(matcher_call_args, actual_call_args)
+            return True
+        except AssertionError:
+            return False
 
     def __lt__(self, other):
         if ANY_ARG in other.args or self.args < other.args:
@@ -319,7 +352,7 @@ class InvocationFormatter(object):
 
 class PropertyInvocation(Invocation):
     def __eq__(self, other):
-        return self.name == other.name
+        return self._name == other._name
 
 
 class PropertyGet(PropertyInvocation):
@@ -327,10 +360,10 @@ class PropertyGet(PropertyInvocation):
         super(PropertyGet, self).__init__(double, name)
 
     def _apply_on_collaborator(self):
-        return getattr(self.double._proxy.collaborator, self.name)
+        return getattr(self._double._proxy.collaborator, self._name)
 
     def __repr__(self):
-        return "get %s.%s" % (self.double._classname(), self.name)
+        return "get %s.%s" % (self._double._classname(), self._name)
 
 
 class PropertySet(PropertyInvocation):
@@ -340,11 +373,11 @@ class PropertySet(PropertyInvocation):
         super(PropertySet, self).__init__(double, name, param)
 
     def _apply_on_collaborator(self):
-        return setattr(self.double._proxy.collaborator, self.name, self.value)
+        return setattr(self._double._proxy.collaborator, self._name, self.value)
 
     def __repr__(self):
-        return "set %s.%s to %s" % (self.double._classname(),
-                                    self.name, self.value)
+        return "set %s.%s to %s" % (self._double._classname(),
+                                    self._name, self.value)
 
 
 def property_factory(double, key):
