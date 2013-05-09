@@ -20,8 +20,9 @@
 
 
 import hamcrest
+from hamcrest.core.matcher import Matcher
 from hamcrest.core.base_matcher import BaseMatcher
-from hamcrest import assert_that, is_
+from hamcrest import is_, instance_of
 
 from .internal import (
     Method, InvocationContext, ANY_ARG, MockBase, SpyBase,
@@ -31,7 +32,7 @@ __all__ = ['called',
            'never',
            'verify', 'any_order_verify',
            'property_got', 'property_set',
-           'assert_that', 'is_']
+           'assert_that', 'is_', 'instance_of']
 
 
 # just hamcrest aliases
@@ -39,6 +40,14 @@ at_least = hamcrest.greater_than_or_equal_to
 at_most = hamcrest.less_than_or_equal_to
 any_time = hamcrest.greater_than(0)
 
+
+class HamcrestMatcherRequiredError(Exception):
+    pass
+
+def assert_that(actual, matcher=None, reason=''):
+    if matcher and not isinstance(matcher, Matcher):
+        raise HamcrestMatcherRequiredError("%s should be a hamcrest Matcher" % str(matcher))
+    return hamcrest.assert_that(actual, matcher, reason)
 
 class OperationMatcher(BaseMatcher):
     pass
