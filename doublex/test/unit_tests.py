@@ -32,6 +32,7 @@ from hamcrest.library.object.hasproperty import *
 from hamcrest.library.number.ordering_comparison import *
 
 from doublex import *
+from doublex.matchers import HamcrestMatcherRequiredError
 from doublex.internal import InvocationContext
 
 
@@ -176,8 +177,7 @@ class StubTests(TestCase):
         with self.stub:
             self.stub.hello().returns((3, 4))
 
-        assert_that(self.stub.hello(), (3, 4))
-
+        assert_that(self.stub.hello(), is_((3, 4)))
 
 class AccessingActualAttributes(TestCase):
     def test_read_class_attribute_providing_class(self):
@@ -601,11 +601,11 @@ class DisplayResultsTests(TestCase):
 
     def test_empty_spy_stub_method(self):
         assert_that(self.empty_spy.foo._show_history(),
-                    "method 'Spy.foo' never invoked")
+                    reason="method 'Spy.foo' never invoked")
 
     def test_spy_stub_method(self):
         assert_that(self.spy.method_one._show_history(),
-                    "method 'Collaborator.method_one' never invoked")
+                    reason="method 'Collaborator.method_one' never invoked")
 
     def test_empty_spy_stub_method_invoked(self):
         self.empty_spy.foo()
@@ -874,6 +874,9 @@ class MatcherTests(TestCase):
         assert_that(self.spy.m3, called().with_args(greater_than(1)))
         assert_that(self.spy.m6, called().with_args(name=contains_string("doe")))
 
+    def test_assert_that_requires_a_matcher(self):
+        self.assertRaises(HamcrestMatcherRequiredError, assert_that, self.spy.m1, True)
+
 
 class StubObserverTests(TestCase):
     def setUp(self):
@@ -985,7 +988,7 @@ class MimicTests(TestCase):
     def test_mimic_spy_DOES_inherit_collaborator_superclasses(self):
         spy = Mimic(Spy, self.B)
         for cls in [self.B, self.A, Spy, Stub, object]:
-            assert_that(isinstance(spy, cls), cls)
+            assert_that(spy, instance_of(cls))
 
     def test_mimic_stub_works(self):
         stub = Mimic(Stub, self.B)
