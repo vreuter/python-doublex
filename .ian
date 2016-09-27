@@ -9,5 +9,5 @@ function ian-release-hook() {
 }
 
 function ian-clean-hook() {
-    rm -rf .tox
+    rm -rf .tox docs/_build dist
 }
