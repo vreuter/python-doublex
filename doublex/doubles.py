@@ -106,7 +106,7 @@ class Stub(object):
         try:
             AttributeFactory.create(self, key)
         except AttributeError:
-            #  collaborator has not attribute 'key', creaing it ad-hoc
+            #  collaborator has not attribute 'key', creating it ad-hoc
             pass
 
         # descriptor protocol compliant

@@ -1711,6 +1711,22 @@ class TracerTests(TestCase):
         assert_that(self.out.getvalue(),
                     is_("ObjCollaborator.prop set to 2"))
 
+# https://bitbucket.org/DavidVilla/python-doublex/issues/24/customize-different-return-values-for
+class function_doubles(TestCase):
+    def test_hack_function_spy(self):
+        with Stub() as stub:
+            method = Method(stub, 'orphan')
+            method("hello").returns("world")
+
+        assert_that(method("hello"), is_("world"))
+
+    # TODO
+    # def test_stub_call(self):
+    #     with Stub() as stub:
+    #         stub("hello").returns("world")
+
+    #     assert_that(stub("hello"), is_("world"))
+
 
 class SomeException(Exception):
     pass
